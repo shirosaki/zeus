@@ -30,6 +30,7 @@ module Zeus
           rescue Errno::ECHILD
             raise HasNoChildren.new("Stage `#{@name}` - All terminal nodes must be acceptors")
           end
+          puts "#{pid} ENDED! : #{@pids[pid]}"
           stage = @pids[pid]
           @pids[stage.run] = stage
         end

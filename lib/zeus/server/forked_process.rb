@@ -10,7 +10,7 @@ module Zeus
       end
 
       def notify_feature(feature)
-        @server.__CHILD__pid_has_feature(Process.pid, feature)
+        @server.__CHILD__stage_has_feature(@name, feature)
       end
 
       def descendent_acceptors
@@ -23,13 +23,14 @@ module Zeus
 
       def setup_forked_process(close_parent_sockets)
         @server.__CHILD__close_parent_sockets if close_parent_sockets
-        @server.__CHILD__pid_has_ppid(Process.pid, Process.ppid)
 
         $0 = "zeus #{process_type}: #{@name}"
 
-        Zeus.ui.info("starting #{process_type} `#{@name}`")
+        pid = Process.pid
+        @server.__CHILD__status(pid, :starting, @name)
         trap("INT") {
-          Zeus.ui.info("killing #{process_type} `#{@name}`")
+          @server.__CHILD__status(pid, :killing, @name)
+          puts "exiting"
           exit 0
         }
 

@@ -27,11 +27,12 @@ module Zeus
     def initialize
       @file_monitor                  = FileMonitor::FSEvent.new(&method(:dependency_did_change))
       @acceptor_registration_monitor = AcceptorRegistrationMonitor.new
-      @process_tree_monitor          = ProcessTreeMonitor.new(@file_monitor)
+      @tree = @@definition
+      @process_tree_monitor          = ProcessTreeMonitor.new(@file_monitor, @tree)
       acceptor_commands = self.class.acceptors.map(&:commands).flatten
       @client_handler                = ClientHandler.new(acceptor_commands, self)
 
-      @plan = @@definition.to_domain_object(self)
+      @plan = @tree.to_domain_object(self)
     end
 
     def dependency_did_change(file)
@@ -71,8 +72,8 @@ module Zeus
       :__CHILD__find_acceptor_for_command
 
     def_delegators :@process_tree_monitor,
-      :__CHILD__pid_has_ppid,
-      :__CHILD__pid_has_feature
+      :__CHILD__stage_has_feature,
+      :__CHILD__status
 
   end
 end

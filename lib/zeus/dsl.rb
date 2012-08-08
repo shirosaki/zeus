@@ -8,10 +8,71 @@ module Zeus
       end
     end
 
-    class Acceptor
+    class Node
+      attr_accessor :pid, :features
+      attr_reader :name, :stages
 
-      attr_reader :name, :aliases, :description, :action
+      def initialize
+        @stages = []
+        @features = {}
+      end
+
+      def add_feature(feature)
+        features[feature] = true
+      end
+
+      def has_feature?(feature)
+        features[feature]
+      end
+
+      def kill
+        Process.kill("INT", @pid) if @pid
+      end
+
+      def update_status(pid, status, name)
+        if name == @name
+          puts [status, pid, name, :i].inspect
+          if status == :killing
+            @pid = nil
+          else
+            @pid = pid
+          end
+          @status = status
+        else
+          stages.each do |child|
+            child.update_status(pid, status, name)
+          end
+        end
+      end
+
+      # TODO: Cache stages by name in the top object so
+      # we don't have to recurse a bajillion times
+      def stage_has_feature(name, feature)
+        if name == @name
+          add_feature(feature)
+        else
+          stages.each do |child|
+            child.stage_has_feature(name, feature)
+          end
+        end
+      end
+
+      def kill_nodes_with_feature(feature, parent_killed=false)
+        should_kill = has_feature?(feature) || parent_killed
+        puts "KILLING NODES WITH #{feature} (#{should_kill} in #{name})"
+        stages.each do |child|
+          child.kill_nodes_with_feature(feature, should_kill)
+        end
+        kill() if should_kill
+      end
+
+    end
+
+    class Acceptor < Node
+
+      attr_reader :aliases, :description, :action
       def initialize(name, aliases, description, &b)
+        super()
         @name = name
         @description = description
         @aliases = aliases
@@ -40,10 +101,11 @@ module Zeus
 
     end
 
-    class Stage
+    class Stage < Node
 
-      attr_reader :pid, :stages, :actions
+      attr_reader :actions
       def initialize(name)
+        super()
         @name = name
         @stages, @actions = [], []
       end

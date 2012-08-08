@@ -1,7 +1,7 @@
 module Zeus
   class Server
     class ProcessTreeMonitor
-      PID_TYPE = "P"
+      STATUS_TYPE = "S"
       FEATURE_TYPE = "F"
 
       def datasource          ; @sock ; end
@@ -9,7 +9,7 @@ module Zeus
       def close_child_socket  ; @__CHILD__sock.close ; end
       def close_parent_socket ; @sock.close ; end
 
-      def initialize(file_monitor, tree=ProcessTree.new)
+      def initialize(file_monitor, tree)
         @tree = tree
         @file_monitor = file_monitor
 
@@ -21,15 +21,15 @@ module Zeus
       end
 
       module ChildProcessApi
-        def __CHILD__pid_has_ppid(pid, ppid)
-          @__CHILD__sock.send("#{PID_TYPE}:#{pid}:#{ppid}", 0)
+        def __CHILD__status(pid, status, name)
+          @__CHILD__sock.send("#{STATUS_TYPE}#{pid}:#{status.to_s}:#{name.to_s}", 0)
         rescue Errno::ENOBUFS
           sleep 0.2
           retry
         end
 
-        def __CHILD__pid_has_feature(pid, feature)
-          @__CHILD__sock.send("#{FEATURE_TYPE}:#{pid}:#{feature}", 0)
+        def __CHILD__stage_has_feature(name, feature)
+          @__CHILD__sock.send("#{FEATURE_TYPE}#{name.to_s}:#{feature}", 0)
         rescue Errno::ENOBUFS
           sleep 0.2
           retry
@@ -49,8 +49,8 @@ module Zeus
         case data[0]
         when FEATURE_TYPE
           handle_feature_message(data[1..-1])
-        when PID_TYPE
-          handle_pid_message(data[1..-1])
+        when STATUS_TYPE
+          handle_status_message(data[1..-1])
         end
       end
 
@@ -58,16 +58,17 @@ module Zeus
         Socket.pair(:UNIX, :DGRAM)
       end
 
-      def handle_pid_message(data)
-        data =~ /(\d+):(\d+)/
-          pid, ppid = $1.to_i, $2.to_i
-        @tree.process_has_parent(pid, ppid)
+      def handle_status_message(data)
+        data =~ /(\d+):(.+?):(.+)/
+          pid, status, name = $1.to_i, $2, $3
+        puts [pid, status, name].inspect
+        @tree.update_status(pid, status, name.to_sym)
       end
 
       def handle_feature_message(data)
-        data =~ /(\d+):(.*)/
-          pid, file = $1.to_i, $2
-        @tree.process_has_feature(pid, file)
+        data =~ /(.+?):(.*)/
+          name, file = $1, $2
+        @tree.stage_has_feature(name.to_sym, file)
         @file_monitor.watch(file)
       end
 
