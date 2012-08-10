@@ -13,6 +13,7 @@ module Zeus
     autoload :ForkedProcess,               'zeus/server/forked_process'
     autoload :ClientHandler,               'zeus/server/client_handler'
     autoload :ProcessTreeMonitor,          'zeus/server/process_tree_monitor'
+    autoload :ProcessTreeRenderer,         'zeus/server/process_tree_renderer'
     autoload :AcceptorRegistrationMonitor, 'zeus/server/acceptor_registration_monitor'
 
     def self.define!(&b)
@@ -29,7 +30,27 @@ module Zeus
       @process_tree_monitor          = ProcessTreeMonitor.new(@file_monitor, @@definition)
       @client_handler                = ClientHandler.new(acceptor_commands, self)
 
+      set_mode
+      start_renderer if visual_mode?
+
       @plan = @@definition.to_process_object(self)
+    end
+
+    def set_mode
+      @mode = $stdout.isatty ? :visual : :text
+    end
+
+    def visual_mode?
+      @mode == :visual
+    end
+
+    def text_mode?
+      @mode == :text
+    end
+
+    def start_renderer
+      @renderer = ProcessTreeRenderer.new(@@definition)
+      @renderer.run!
     end
 
     def dependency_did_change(file)
@@ -44,7 +65,6 @@ module Zeus
       $0 = "zeus master"
       trap("TERM") { exit 0 }
       trap("INT") {
-        puts "\n\x1b[31mExiting\x1b[0m"
         exit 0
       }
 

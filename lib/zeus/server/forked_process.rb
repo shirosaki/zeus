@@ -24,12 +24,12 @@ module Zeus
 
       def notify_started
         @server.__CHILD__stage_starting_with_pid(@name, Process.pid)
-        Zeus.ui.info("starting #{process_type} `#{@name}`")
+        Zeus.ui.info("starting #{process_type} `#{@name}`") unless @server.visual_mode?
       end
 
       def notify_terminated
         # @server.__CHILD__stage_terminating(@name)
-        Zeus.ui.info("killing #{process_type} `#{@name}`")
+        Zeus.ui.info("killing #{process_type} `#{@name}`") unless @server.visual_mode?
       end
 
       def setup_forked_process(close_parent_sockets)
